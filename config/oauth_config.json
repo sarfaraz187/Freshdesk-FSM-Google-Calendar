@@ -1,0 +1,13 @@
+{
+  "client_id": "710153359701-vtt448kmpvor9ink3dd67h5q77ggrjuj.apps.googleusercontent.com",
+  "client_secret": "aysmCl4bje8VJW-r9htbzqIy",
+  "authorize_url": "https://accounts.google.com/o/oauth2/auth",
+  "token_url": "https://oauth2.googleapis.com/token",
+  "token_type": "account",
+  "response_type" : "code",
+  "options": {
+    "access_type" : "offline",
+    "scope": "https://www.googleapis.com/auth/calendar",
+    "redirect_url" : "http://localhost:10001/auth/callback"
+  }
+}
