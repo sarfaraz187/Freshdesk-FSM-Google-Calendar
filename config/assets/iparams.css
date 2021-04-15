@@ -1,0 +1,7 @@
+.hydrated {
+  margin-top: 15px;
+}
+
+.input-container-inner+.help-block {
+  color: black !important;
+}

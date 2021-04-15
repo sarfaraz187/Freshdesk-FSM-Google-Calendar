@@ -5,26 +5,144 @@
   <link rel="stylesheet" type="text/css" href="./assets/iparams.css">
 </head>
 <body>
-<div class='form'>
-
-</div>
+  <div class="container">
+    <fw-tabs>
+      <fw-toast id="type_toast"></fw-toast>
+      <fw-tab tab-header="Freshdesk Configuration">
+        <fw-input id="domain_name" label="Domain Name" state-text="" state="" placeholder="Enter Freshdesk Domain name" required clear-input>
+        </fw-input>
+        <fw-input id="api_key" label="Api Key" state-text="" state="" placeholder="Enter Freshdesk Api key" required clear-input>
+        </fw-input>
+        <fw-button color="primary" id="freshdeskConnect">Verify</fw-button>
+      </fw-tab>
+      <fw-tab tab-header="Google Calendar Configuration">
+        <fw-input id="calendar_name" label="Calendar Name" state="" placeholder="Enter Google Calendar Name (Organistation)." required clear-input>
+        </fw-input>
+        <fw-button color="primary" id="calendarConnect">Create</fw-button>
+      </fw-tab>
+    </fw-tabs>
+  </div>
+<script type="module" src="https://unpkg.com/@freshworks/crayons/dist/crayons/crayons.esm.js"></script>
+<script nomodule src="https://unpkg.com/@freshworks/crayons/dist/crayons/crayons.js"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.0/jquery.min.js"></script>
 <script src="https://static.freshdev.io/fdk/2.0/assets/fresh_client.js"></script>
 <script src="./assets/iparams.js"></script>
 <script type= "text/javascript">
-function getConfigs(configs) {
-  //write your code here
-};
 
-function validate() {
-  let isValid = true;
-  //write your code here
-  return isValid;
-};
+  this.calendarId = '';
 
-function postConfigs() {
-  //write your code here
-};
+  function showNotification(status, message) {
+    document.querySelector('#type_toast').trigger({ type: status, content: message });
+  }
+
+  function setButton(buttonId, text, isDisable) {
+    var jq = 'fw-button#' + buttonId;
+    $(jq).prop('disabled', isDisable);
+    $(jq).html(text);
+  }
+
+  function calendarApi(btn_text, notificationText, options) {
+    // console.log({ options });
+    // console.log(`https://www.googleapis.com/calendar/v3/${options.type}`);
+    setButton('calendarConnect', `${btn_text}` , true);
+    var opt = {
+      headers: {
+        "Authorization": "Bearer <%= access_token %>",
+        "Accept": "application/json",
+        "Content-Type": "application/json"
+      },
+      isOAuth: true
+    };
+    if('body' in options) {
+      opt['body'] = options.body
+    } 
+    client.request[options.method](`https://www.googleapis.com/calendar/v3/${options.type}`, opt).then(function (data) {
+      console.log("calendar Response :", data);
+      this.calendarId = JSON.parse(data.response).id;      
+      showNotification('success', `Google Calendar ${notificationText} successfully.`);
+      setButton('calendarConnect', `${btn_text}` , false);
+    }, err => {
+      showNotification('error', `Failed to ${btn_text} Google Calendar.`);
+      setButton('calendarConnect', `${btn_text}` , false);
+      console.log(err.response);
+    });
+  }
+
+  function connectCalendar() {
+    let calendar_name = $("#calendar_name").val();
+    if(calendar_name) {
+      console.log("Calendar ID :", calendarId);
+      let createObj = { method : 'post', type : 'calendars', body : JSON.stringify({ 'summary' : calendar_name })}
+      let updateObj = { method : 'put', type : `calendars/${calendarId}`, body : JSON.stringify({ 'summary' : calendar_name })}
+      calendarId ? calendarApi('Update', 'Updated', updateObj) : calendarApi('Create', "Created", createObj);
+    } else {
+      showNotification('error', `Invalid Calendar name.`);
+    }
+  }
+
+  function connectFreshdesk() {
+    let domain_name = $("#domain_name").val(), apiKey = $("#api_key").val();
+    setButton('freshdeskConnect', 'Verifying...', true);
+    if (domain_name && apiKey) {
+      let base_url = $("#domain_name").val().includes("https://") ? domain_name + "/api/v2/groups" : `https://${domain_name}/api/v2/groups`;
+      console.log({ base_url, apiKey });
+      var opt = {
+        headers: {
+          "Authorization": "Basic " + btoa(apiKey + ":X"),
+          "Content-Type": "application/json; charset=utf-8"
+        }
+      };
+      client.request.get(base_url, opt).then(payload => {
+        let response = JSON.parse(payload.response);
+        console.log({ response });
+        showNotification('success', 'Verified successfully');
+        setButton('freshdeskConnect', 'Verify', false);
+      }, err => {
+        console.log(err);
+        showNotification('error', 'Either Domain name or Api key is invalid.');
+        setButton('freshdeskConnect', 'Verify', false);
+      });
+    } else {
+      showNotification('error', 'Domain name or Api key cannot be empty.');
+      setButton('freshdeskConnect', 'Verify', false);
+    }
+  }
+      
+  $(document).ready(function () {
+    app.initialized().then(function (_client) {
+      window.client = _client;
+      $("#freshdeskConnect").on("fwClick", connectFreshdesk);
+      $("#calendarConnect").on("fwClick", connectCalendar);
+    });
+  });
+
+  function getConfigs(configs) {
+    console.log(configs);
+    this.calendarId = configs.calendarId;
+    // $("#calendar_name").val(configs.calendarId);
+    $("#api_key").val(configs.apiKey);
+    $("#domain_name").val(configs.domain);
+    $("#calendar_name").val(configs.calendarName);
+    setButton('calendarConnect', `Update` , false);
+  };
+
+  function validate() {
+    let isValid = true;    
+    return isValid;
+  };
+
+  function postConfigs() {
+    const configs = {
+      _meta: {
+        secure: ["apiKey"]
+      },
+      apiKey : $("#api_key").val(),
+      domain : $("#domain_name").val(),
+      calendarId : this.calendarId,
+      calendarName : $("#calendar_name").val()
+    }
+    return configs;
+  };
 </script>
 </body>
 </html>
