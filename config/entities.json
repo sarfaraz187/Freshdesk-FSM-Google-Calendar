@@ -8,6 +8,11 @@
         "filterable" : true
       },
       {
+        "name": "event_id",
+        "label": "Event ID",
+        "type": "TEXT"
+      },
+      {
         "name": "cf_fsm_contact_name",
         "label": "Contact Name ",
         "type": "TEXT"
