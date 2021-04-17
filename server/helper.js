@@ -1,4 +1,5 @@
 const base64 = require('base-64');
+
 async function calendarApi(options) {
   var opt = {
     headers: {
@@ -9,7 +10,7 @@ async function calendarApi(options) {
     isOAuth: true
   };
   let base_url = `https://www.googleapis.com/calendar/v3/${options.type}`;
-  console.log({ base_url });
+  // console.log({ base_url });
   if('body' in options) {
     opt['body'] = options.body
   } 
@@ -22,7 +23,7 @@ async function calendarApi(options) {
 }
 
 async function requestApi(options) {
-  console.log(options);
+  // console.log(options);
   var opt = {
     headers: {
       "Authorization": "Basic " + base64.encode(options.iparams.apiKey + ":x"),
@@ -30,7 +31,7 @@ async function requestApi(options) {
     }
   };
   let url = (options.iparams.domain.startsWith('https://')) ? `${options.iparams.domain}/` + options.url : `https://${options.iparams.domain}/` + options.url;
-  console.log({ url });
+  // console.log({ url });
   let request = ('body' in options) ? $request[options.method](url, options.body, opt) : $request[options.method](url, opt)
   var [error, result] = await responseHandler(request)
   if (error) {

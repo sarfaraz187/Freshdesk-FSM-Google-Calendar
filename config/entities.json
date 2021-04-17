@@ -25,7 +25,7 @@
       {
         "name": "cf_fsm_phone_number",
         "label": "Phone Number",
-        "type" : "NUMBER"
+        "type" : "TEXT"
       },
       {
         "name": "cf_fsm_service_location",

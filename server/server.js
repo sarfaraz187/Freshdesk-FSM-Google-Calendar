@@ -6,8 +6,8 @@ exports = {
     { event: "onTicketUpdate", callback: "onTicketUpdateCallback" }
   ],
   onTicketCreateCallback: async function(payload) {
-    console.log("----------------- On Ticket Create ---------------------");
-    checkTicketType(payload, '');
+    console.log(`----------------- On Ticket Create : ${payload.data.ticket.id} ---------------------`);
+    checkTicketType(payload.data.ticket, '', payload.iparams);
   },
   onTicketUpdateCallback: async function(payload) {
     console.log(`----------------- On Ticket Update : ${payload.data.ticket.id} ---------------------`);
@@ -17,26 +17,25 @@ exports = {
       query : { 'ticket_id': payload.data.ticket.id }
     }).then(function(dbData) {
       console.log(dbData.records);
-      (dbData.records.length === 0) ? checkTicketType(payload, '') : checkTicketType(payload, dbData.records[0]) ;
+      (dbData.records.length === 0) ? checkTicketType(payload.data.ticket, '', payload.iparams) : checkTicketType(payload.data.ticket, dbData.records[0], iparams) ;
     }, err => {
       console.log(err);
     });
   },
   serverMethod : async function (payload) {
     console.log("----------------- SMI Update Event ---------------------");
-    console.log(payload);
-    renderData(null, { "key": "value" });
+    checkTicketType(payload.ticket, payload.record, payload.iparams);
+    renderData(null, {});
   }
 }
 
-async function checkTicketType(payload, record) {
-  let ticketDetails = payload.data.ticket;
+async function checkTicketType(ticketDetails, record, iparams) {
   let start_time = ticketDetails.custom_fields["cf_fsm_appointment_start_time"];
   let end_time = ticketDetails.custom_fields["cf_fsm_appointment_end_time"];
   if((ticketDetails.type === "Service Task") && (ticketDetails.responder_id !== null) && start_time && end_time) {
-    let response = await helpers.requestApi({ url: `api/v2/agents/${ticketDetails.responder_id}`, method: 'get', iparams : payload.iparams });
+    let response = await helpers.requestApi({ url: `api/v2/agents/${ticketDetails.responder_id}`, method: 'get', iparams : iparams });
     let agentDetails = JSON.parse(response);
-    record.data.event_id ? updateCalendarEvent(ticketDetails, agentDetails, payload.iparams, record) : createCalendarEvent(ticketDetails, agentDetails, payload.iparams);
+    record ? updateCalendarEvent(ticketDetails, agentDetails, iparams, record) : createCalendarEvent(ticketDetails, agentDetails, iparams);
   }
 }
 
@@ -74,6 +73,7 @@ async function storeInDB(ticketDetails, agentDetails, eventID) {
 
 async function updateInDB(ticketDetails, agentDetails, display_id, eventID) {
   const $entity = $db.entity({ version: 'v1' });
+  console.log(eventID)
   let dbObj = await getDbeObj(ticketDetails, agentDetails, eventID); 
   const responseFromDb = await $entity.get('fsm_records')
   responseFromDb.update(display_id, dbObj).then(dbData => {
@@ -114,7 +114,7 @@ async function getDbeObj(ticketDetails, agentDetails, eventID) {
     'responder_id' : agentDetails.id,
     'cf_fsm_contact_name': ticketDetails.custom_fields["cf_fsm_contact_name"],
     'cf_fsm_service_location' : ticketDetails.custom_fields["cf_fsm_service_location"],
-    'cf_fsm_phone_number' : Number(ticketDetails.custom_fields["cf_fsm_phone_number"]),
+    'cf_fsm_phone_number' : ticketDetails.custom_fields["cf_fsm_phone_number"],
     'cf_fsm_appointment_start_time' : new Date(ticketDetails.custom_fields["cf_fsm_appointment_start_time"]).toISOString(),
     'cf_fsm_appointment_end_time' : new Date(ticketDetails.custom_fields["cf_fsm_appointment_end_time"]).toISOString()
   }
