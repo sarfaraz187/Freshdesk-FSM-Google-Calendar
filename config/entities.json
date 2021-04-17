@@ -1,0 +1,44 @@
+{
+  "fsm_records": {
+    "fields": [
+      {
+        "name": "ticket_id",
+        "label": "Ticket ID",
+        "type": "NUMBER",
+        "filterable" : true
+      },
+      {
+        "name": "cf_fsm_contact_name",
+        "label": "Contact Name ",
+        "type": "TEXT"
+      },
+      {
+        "name": "responder_id",
+        "label": "Responder ID",
+        "type" : "NUMBER"
+      },
+      {
+        "name": "cf_fsm_phone_number",
+        "label": "Phone Number",
+        "type" : "NUMBER"
+      },
+      {
+        "name": "cf_fsm_service_location",
+        "label": "Service Location",
+        "type": "TEXT"
+      },
+      {
+        "name": "cf_fsm_appointment_start_time",
+        "label": "Appointment Start Time",
+        "type": "DATE_TIME",
+        "filterable": true
+      },
+      {
+        "name": "cf_fsm_appointment_end_time",
+        "label": "Appointment End Time",
+        "type": "DATE_TIME",
+        "filterable": true
+      }
+    ]
+  }
+}

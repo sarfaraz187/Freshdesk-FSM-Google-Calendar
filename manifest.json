@@ -3,11 +3,13 @@
   "product": {
     "freshdesk": {
       "location": {
-        "ticket_sidebar": {
-          "url": "template.html",
-          "icon": "icon.svg"
+        "ticket_background": {
+          "url": "template.html"
         }
       }
     }
+  }, 
+  "dependencies": {
+    "base-64": "1.0.0"
   }
 }

@@ -1,3 +1,6 @@
 server/test_data
 .fdk/
 dist/
+coverage/
+server/node_modules
+server/etc
