@@ -43,6 +43,11 @@
         "label": "Appointment End Time",
         "type": "DATE_TIME",
         "filterable": true
+      },
+      {
+        "name": "updated_at",
+        "label": "Updated At",
+        "type": "DATE_TIME"
       }
     ]
   }

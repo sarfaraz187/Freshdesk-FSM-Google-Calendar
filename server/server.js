@@ -7,6 +7,7 @@ exports = {
   ],
   onTicketCreateCallback: async function(payload) {
     console.log(`----------------- On Ticket Create : ${payload.data.ticket.id} ---------------------`);
+    console.log(payload.data.ticket.updated_at);
     checkTicketType(payload.data.ticket, '', payload.iparams);
   },
   onTicketUpdateCallback: async function(payload) {
@@ -41,7 +42,7 @@ async function checkTicketType(ticketDetails, record, iparams) {
 
 async function createCalendarEvent(ticketDetails, agentDetails, iparams) {
   if(agentDetails.contact.email) {
-    let eventPayload = await getEventObj(ticketDetails, agentDetails);
+    let eventPayload = await getEventObj(ticketDetails, agentDetails, iparams);
     console.log("Event payload on Create : ", eventPayload);
     let response = await helpers.calendarApi({ method : 'post', type : `calendars/${iparams.calendarId}/events`, body : JSON.stringify(eventPayload), iparams : iparams });
     console.log(response);
@@ -55,7 +56,7 @@ async function createCalendarEvent(ticketDetails, agentDetails, iparams) {
 async function updateCalendarEvent(ticketDetails, agentDetails, iparams, record) {
   console.log("------------- Inside Update Event -------------");
   if(agentDetails.contact.email) {
-    let eventPayload = await getEventObj(ticketDetails, agentDetails);
+    let eventPayload = await getEventObj(ticketDetails, agentDetails, iparams);
     let response = await helpers.calendarApi({ method : 'put', type : `calendars/${iparams.calendarId}/events/${record.data.event_id}`, body : JSON.stringify(eventPayload), iparams : iparams });
     let eventID = JSON.parse(response.response).id;
     console.log("Event ID on update :", eventID);
@@ -83,7 +84,7 @@ async function updateInDB(ticketDetails, agentDetails, display_id, eventID) {
   });
 }
 
-async function getEventObj(ticketDetails, agentDetails) {
+async function getEventObj(ticketDetails, agentDetails, iparams) {
   let descriptionBody = `    
     <b>Contact Name : </b>${ticketDetails.custom_fields["cf_fsm_contact_name"]}
     <b>Phone Number : </b>${ticketDetails.custom_fields["cf_fsm_phone_number"]}
@@ -94,11 +95,11 @@ async function getEventObj(ticketDetails, agentDetails) {
     'description': descriptionBody ,
     'start': {
       'dateTime': ticketDetails.custom_fields["cf_fsm_appointment_start_time"],
-      'timeZone': 'UTC',
+      'timeZone': iparams.timeZone,
     },
     'end': {
       'dateTime': ticketDetails.custom_fields["cf_fsm_appointment_end_time"],
-      'timeZone': 'UTC',
+      'timeZone': iparams.timeZone,
     },
     'attendees': [
       {'email': agentDetails.contact.email }
@@ -116,6 +117,7 @@ async function getDbeObj(ticketDetails, agentDetails, eventID) {
     'cf_fsm_service_location' : ticketDetails.custom_fields["cf_fsm_service_location"],
     'cf_fsm_phone_number' : ticketDetails.custom_fields["cf_fsm_phone_number"],
     'cf_fsm_appointment_start_time' : new Date(ticketDetails.custom_fields["cf_fsm_appointment_start_time"]).toISOString(),
-    'cf_fsm_appointment_end_time' : new Date(ticketDetails.custom_fields["cf_fsm_appointment_end_time"]).toISOString()
+    'cf_fsm_appointment_end_time' : new Date(ticketDetails.custom_fields["cf_fsm_appointment_end_time"]).toISOString(),
+    'updated_at' : new Date(ticketDetails.updated_at).toISOString()
   }
 }

@@ -30,6 +30,15 @@
 <script type= "text/javascript">
 
   this.calendarId = '';
+  this.timeZone = '';
+  var opt = {
+    headers: {
+      "Authorization": "Bearer <%= access_token %>",
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+    },
+    isOAuth: true
+  };
 
   function showNotification(status, message) {
     document.querySelector('#type_toast').trigger({ type: status, content: message });
@@ -45,14 +54,6 @@
     // console.log({ options });
     // console.log(`https://www.googleapis.com/calendar/v3/${options.type}`);
     setButton('calendarConnect', `${btn_text}` , true);
-    var opt = {
-      headers: {
-        "Authorization": "Bearer <%= access_token %>",
-        "Accept": "application/json",
-        "Content-Type": "application/json"
-      },
-      isOAuth: true
-    };
     if('body' in options) {
       opt['body'] = options.body
     } 
@@ -74,10 +75,25 @@
       console.log("Calendar ID :", calendarId);
       let createObj = { method : 'post', type : 'calendars', body : JSON.stringify({ 'summary' : calendar_name })}
       let updateObj = { method : 'put', type : `calendars/${calendarId}`, body : JSON.stringify({ 'summary' : calendar_name })}
-      calendarId ? calendarApi('Update', 'Updated', updateObj) : calendarApi('Create', "Created", createObj);
+      if(calendarId) {
+        calendarApi('Update', 'Updated', updateObj) 
+      } else {
+        syncCalendarTimeZone();
+        calendarApi('Create', "Created", createObj);
+      }
     } else {
       showNotification('error', `Invalid Calendar name.`);
     }
+  }
+
+  function syncCalendarTimeZone() {
+    let url = 'https://www.googleapis.com/calendar/v3/users/me/settings';
+    client.request.get(url, opt).then(data => {
+      let response = JSON.parse(data.response);
+      let timeZoneObj = response.items.find(x => x.id === "timezone");
+      console.log("Time zone : ", timeZoneObj.value);
+      this.timeZone = timeZoneObj.value;
+    }, err => console.error(err));
   }
 
   function connectFreshdesk() {
@@ -119,16 +135,15 @@
   function getConfigs(configs) {
     console.log(configs);
     this.calendarId = configs.calendarId;
-    // $("#calendar_name").val(configs.calendarId);
     $("#api_key").val(configs.apiKey);
     $("#domain_name").val(configs.domain);
-    $("#calendar_name").val(configs.calendarName);
+    $("#calendar_name").val(configs.calendarName);    
     setButton('calendarConnect', `Update` , false);
+    syncCalendarTimeZone();
   };
 
   function validate() {
-    let isValid = true;    
-    return isValid;
+    return ($("#api_key").val() && $("#domain_name").val() && $("#calendar_name").val()) ? true : false;
   };
 
   function postConfigs() {
@@ -138,8 +153,9 @@
       },
       apiKey : $("#api_key").val(),
       domain : $("#domain_name").val(),
+      calendarName : $("#calendar_name").val(),
       calendarId : this.calendarId,
-      calendarName : $("#calendar_name").val()
+      timeZone : this.timeZone,
     }
     return configs;
   };
