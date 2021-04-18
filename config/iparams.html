@@ -91,7 +91,6 @@
     client.request.get(url, opt).then(data => {
       let response = JSON.parse(data.response);
       let timeZoneObj = response.items.find(x => x.id === "timezone");
-      console.log("Time zone : ", timeZoneObj.value);
       this.timeZone = timeZoneObj.value;
     }, err => console.error(err));
   }

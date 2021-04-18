@@ -8,6 +8,6 @@
   "options": {
     "access_type" : "offline",
     "scope": "https://www.googleapis.com/auth/calendar",
-    "redirect_url" : "http://localhost:10001/auth/callback"
+    "redirect_url" : "https://oauth.freshdev.io/auth/callback"
   }
 }
