@@ -1,4 +1,5 @@
 const base64 = require('base-64');
+const axios = require('axios');
 
 async function calendarApi(options) {
   var opt = {
@@ -16,6 +17,7 @@ async function calendarApi(options) {
   } 
   var [error, result] = await responseHandler($request[options.method](base_url, opt));
   if (error) {
+    // console.log(JSON.stringify(error));
     console.log(error.response.data)
   } else {
     return result
@@ -23,25 +25,30 @@ async function calendarApi(options) {
 }
 
 async function requestApi(options) {
-  // console.log(options);
   var opt = {
     headers: {
       "Authorization": "Basic " + base64.encode(options.iparams.apiKey + ":x"),
       "Content-Type": "application/json; charset=utf-8"
     }
   };
-  let url = (options.iparams.domain.startsWith('https://')) ? `${options.iparams.domain}/` + options.url : `https://${options.iparams.domain}/` + options.url;
-  // console.log({ url });
-  let request = ('body' in options) ? $request[options.method](url, options.body, opt) : $request[options.method](url, opt)
-  var [error, result] = await responseHandler(request)
-  if (error) {
-    console.log(error.response.data.errors);
+  let url;
+  if (options.iparams.domain.startsWith('https://')) {
+    url = `${options.iparams.domain}/` + options.url;
   } else {
-    return result.response
+    url = `https://${options.iparams.domain}/` + options.url;
+  }
+  console.log(url)
+  let request = ('body' in options) ? axios[options.method](url, options.body, opt) : axios[options.method](url, opt)
+  var [error, result] = await responseHandler(request);
+  if (error) {
+    console.log(error.response.data)
+    return error.response
+  } else {
+    return result
   }
 }
 
-function responseHandler(promise, improved) {
+async function responseHandler(promise, improved) {
   return promise.then((data) => [null, data], (err) => {
     if (improved) {
       Object.assign(err, improved);

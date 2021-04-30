@@ -57,6 +57,7 @@
     if('body' in options) {
       opt['body'] = options.body
     } 
+    console.log(opt)
     client.request[options.method](`https://www.googleapis.com/calendar/v3/${options.type}`, opt).then(function (data) {
       console.log("calendar Response :", data);
       this.calendarId = JSON.parse(data.response).id;      
@@ -90,6 +91,7 @@
     let url = 'https://www.googleapis.com/calendar/v3/users/me/settings';
     client.request.get(url, opt).then(data => {
       let response = JSON.parse(data.response);
+      console.log("Sync Response :", response);
       let timeZoneObj = response.items.find(x => x.id === "timezone");
       this.timeZone = timeZoneObj.value;
     }, err => console.error(err));
@@ -134,6 +136,7 @@
   function getConfigs(configs) {
     console.log(configs);
     this.calendarId = configs.calendarId;
+    this.timeZone = configs.timeZone;
     $("#api_key").val(configs.apiKey);
     $("#domain_name").val(configs.domain);
     $("#calendar_name").val(configs.calendarName);    

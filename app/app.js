@@ -10,6 +10,8 @@ $(document).ready( function() {
 });
 
 var eventCallback = function (event) {
+  console.clear();
+  console.log("Event triggered !!!");
   var event_data = event.helper.getData();
   event.helper.done();
   (event_data.changedAttributes["isCustomFieldsChanged"]) ? getTicketDetails() : '';
@@ -20,12 +22,15 @@ function getTicketDetails () {
     if(data.ticket.type == "Service Task") {
       const entity = client.db.entity({ version: 'v1' });
       const fsmRecords = entity.get('fsm_records');
+      console.log(data.ticket)
       fsmRecords.getAll({
         query : { 'ticket_id': data.ticket.id }
       }).then(function(dbData) {
         console.log("Records from DB :", dbData.records);
         dbData.records.length > 0 ? checkFieldsUpdate(dbData.records[0], data.ticket) : '';
       }, err => console.log(err));
+    } else {
+      console.log("Not a service request");
     }
   }, function(error) {
     console.log(error);
@@ -33,7 +38,7 @@ function getTicketDetails () {
 }
 
 function checkFieldsUpdate(record, ticketDetails) {
-  // console.log("Before : ", record.data);
+  console.log("Before : ", ticketDetails);
   var fieldNames = Object.keys(record.data).filter(function(e) { 
     return this.indexOf(e) < 0
   }, ['responder_id', 'ticket_id', 'event_id']);
@@ -49,7 +54,7 @@ function checkFieldsUpdate(record, ticketDetails) {
       }
     } 
   });
-  // console.log("After : ", record.data, flag);
+  console.log("After : ", record.data, flag);
   updateCalendarEvent(flag, ticketDetails, record);
 }
 

@@ -10,26 +10,31 @@ exports = {
   ],
   onTicketCreateCallback: async function(payload) {
     console.log(`----------------- On Ticket Create : ${payload.data.ticket.id} ---------------------`);
-    console.log(payload.data.ticket.updated_at);
+    payload.data.ticket["custom_fields"] = await getCustomFieldObj(payload);
+    console.log(payload.data.ticket.custom_fields);
     checkTicketType(payload.data.ticket, '', payload.iparams);
   },
   onTicketUpdateCallback: async function(payload) {
     console.log(`----------------- On Ticket Update : ${payload.data.ticket.id} ---------------------`);
+    payload.data.ticket["custom_fields"] = await getCustomFieldObj(payload);
     const $entity = $db.entity({ version: 'v1' });
     const responseFromDb = await $entity.get('fsm_records');
     responseFromDb.getAll({
       query : { 'ticket_id': payload.data.ticket.id }
     }).then(function(dbData) {
-      console.log(dbData.records);
+      console.log("Records from entity : ", dbData.records);
       if(dbData.records.length === 0) {
+        console.log("Inside create calendar event !!!!!");
         checkTicketType(payload.data.ticket, '', payload.iparams); 
       } else {
+        console.log("Inside update calendar event !!!!!");
         (payload.data.ticket.status === 5) ? deleteCalendarEvent(dbData.records[0], payload.iparams) : checkTicketType(payload.data.ticket, dbData.records[0], payload.iparams); 
       }
     }, err => console.log(err));
   },
   serverMethod : async function (payload) {
     console.log("----------------- SMI Update Event ---------------------");
+    console.log(payload.record);
     checkTicketType(payload.ticket, payload.record, payload.iparams);
     renderData(null, {});
   },
@@ -44,8 +49,85 @@ exports = {
     let time = moment().subtract(5, "minutes").startOf('second').toISOString();
     console.log(`Time to search : ${time}`);
     let response = await helpers.requestApi({ url: `api/v2/tickets?updated_since=${time}&per_page=100`, method: 'get', iparams : payload.iparams });
-    filterTickets(JSON.parse(response), payload.iparams);
+    console.log("Response :", response.data);
+    filterTickets(response.data, payload.iparams);
   }
+}
+
+async function checkTicketType(ticketDetails, record, iparams) {
+  console.log(JSON.stringify(ticketDetails.custom_fields), ticketDetails.responder_id);
+  //cf_fsm_appointment_start_time_1033292
+  let start_time = ticketDetails.custom_fields["cf_fsm_appointment_start_time"];
+  let end_time = ticketDetails.custom_fields["cf_fsm_appointment_end_time"];
+  if((ticketDetails.type === "Service Task") && (ticketDetails.responder_id !== null) && start_time && end_time) {
+    let response = await helpers.requestApi({ url: `api/v2/agents/${ticketDetails.responder_id}`, method: 'get', iparams : iparams });
+    console.log(response.data)
+    record ? updateCalendarEvent(ticketDetails, response.data, iparams, record) : createCalendarEvent(ticketDetails, response.data, iparams);
+  } else {
+    // delete calendad Event and delet record in database
+    deleteCalendarEvent(record, iparams);
+  }
+}
+
+async function deleteCalendarEvent(record, iparams) {
+  console.log("------------ Inside Calendar Delete Event ------------");
+  if(record) {    
+    const $entity = $db.entity({ version: 'v1' });
+    const responseFromDb = await $entity.get('fsm_records');
+    let response = await helpers.calendarApi({ method : 'delete', type : `calendars/${iparams.calendarId}/events/${record.data.event_id}`, iparams : iparams });
+    console.log("Calendar Response on Delete : ", response.status, record.display_id);
+    responseFromDb.delete(record.display_id).then(dbData => {
+      console.log("Response from delete : ", dbData);
+    }, err => console.log(err));
+  } else {
+    console.log("Inside else");
+  }
+}
+
+async function createCalendarEvent(ticketDetails, agentDetails, iparams) {
+  console.log("------------ Inside Create Calendar Event ------------");
+  if(agentDetails.contact.email) {
+    let eventPayload = await getEventObj(ticketDetails, agentDetails, iparams);
+    console.log("Event payload on Create : ", eventPayload, iparams);
+    let response = await helpers.calendarApi({ method : 'post', type : `calendars/${iparams.calendarId}/events`, body : JSON.stringify(eventPayload), iparams : iparams });
+    console.log(response);
+    let eventID = JSON.parse(response.response).id;
+    console.log(eventID);    
+    (response.status == 200 || 202) ? storeInDB(ticketDetails, agentDetails, eventID) : '';
+    storeInDB(ticketDetails, agentDetails, iparams);
+  }
+}
+
+async function updateCalendarEvent(ticketDetails, agentDetails, iparams, record) {
+  console.log("------------- Inside Update Event -------------");
+  // console.log(agentDetails, agentDetails.contact.email);  
+  if(agentDetails.contact.email) {
+    let eventPayload = await getEventObj(ticketDetails, agentDetails, iparams);
+    let response = await helpers.calendarApi({ method : 'put', type : `calendars/${iparams.calendarId}/events/${record.data.event_id}`, body : JSON.stringify(eventPayload), iparams : iparams });
+    let eventID = JSON.parse(response.response).id;
+    console.log("Event ID on update :", eventID);
+    (response.status == 200 || 202) ? updateInDB(ticketDetails, agentDetails, record.display_id, eventID) : '';
+  }
+}
+
+async function storeInDB(ticketDetails, agentDetails, eventID) {
+  const $entity = $db.entity({ version: 'v1' });
+  let dbObj = await getDbeObj(ticketDetails, agentDetails, eventID);
+  const responseFromDb = await $entity.get('fsm_records').create(dbObj);
+  // .then(data => console.log(data)).catch(err => console.log(err));
+  console.log(responseFromDb);
+}
+
+async function updateInDB(ticketDetails, agentDetails, display_id, eventID) {
+  const $entity = $db.entity({ version: 'v1' });
+  console.log(eventID)
+  let dbObj = await getDbeObj(ticketDetails, agentDetails, eventID); 
+  const responseFromDb = await $entity.get('fsm_records')
+  responseFromDb.update(display_id, dbObj).then(dbData => {
+    console.log("Response from Update : ", dbData);
+  }, err => {
+    console.log(err);
+  });
 }
 
 async function filterTickets(response, iparams) {
@@ -93,84 +175,11 @@ async function isServiceTaskUpdated(tkt_obj, responseFromDb, iparams) {
     } else {
       console.log(false);
     }
-  }, err => {
-    console.log(err);
-  });
-}
-
-async function checkTicketType(ticketDetails, record, iparams) {
-  let start_time = ticketDetails.custom_fields["cf_fsm_appointment_start_time"];
-  let end_time = ticketDetails.custom_fields["cf_fsm_appointment_end_time"];
-  if((ticketDetails.type === "Service Task") && (ticketDetails.responder_id !== null) && start_time && end_time) {
-    let response = await helpers.requestApi({ url: `api/v2/agents/${ticketDetails.responder_id}`, method: 'get', iparams : iparams });
-    let agentDetails = JSON.parse(response);
-    record ? updateCalendarEvent(ticketDetails, agentDetails, iparams, record) : createCalendarEvent(ticketDetails, agentDetails, iparams);
-  } else {
-    // delete calendad Event and delet record in database
-    deleteCalendarEvent(record, iparams);
-  }
-}
-
-async function deleteCalendarEvent(record, iparams) {
-  console.log("------------ Inside Calendar Delete Event ------------");
-  if(record) {    
-    const $entity = $db.entity({ version: 'v1' });
-    const responseFromDb = await $entity.get('fsm_records');
-    let response = await helpers.calendarApi({ method : 'delete', type : `calendars/${iparams.calendarId}/events/${record.data.event_id}`, iparams : iparams });
-    console.log("Calendar Response on Delete : ", response.status);
-    responseFromDb.delete(record.display_id).then(dbData => {
-      console.log("Response from delete : ", dbData);
-    }, err => console.log(err));
-  } else {
-    console.log("Inside else");
-  }
-}
-
-async function createCalendarEvent(ticketDetails, agentDetails, iparams) {
-  if(agentDetails.contact.email) {
-    let eventPayload = await getEventObj(ticketDetails, agentDetails, iparams);
-    console.log("Event payload on Create : ", eventPayload);
-    let response = await helpers.calendarApi({ method : 'post', type : `calendars/${iparams.calendarId}/events`, body : JSON.stringify(eventPayload), iparams : iparams });
-    console.log(response);
-    let eventID = JSON.parse(response.response).id;
-    console.log(eventID);    
-    (response.status == 200 || 202) ? storeInDB(ticketDetails, agentDetails, eventID) : '';
-    // storeInDB(ticketDetails, agentDetails, iparams);
-  }
-}
-
-async function updateCalendarEvent(ticketDetails, agentDetails, iparams, record) {
-  console.log("------------- Inside Update Event -------------");
-  if(agentDetails.contact.email) {
-    let eventPayload = await getEventObj(ticketDetails, agentDetails, iparams);
-    let response = await helpers.calendarApi({ method : 'put', type : `calendars/${iparams.calendarId}/events/${record.data.event_id}`, body : JSON.stringify(eventPayload), iparams : iparams });
-    let eventID = JSON.parse(response.response).id;
-    console.log("Event ID on update :", eventID);
-    (response.status == 200 || 202) ? updateInDB(ticketDetails, agentDetails, record.display_id, eventID) : '';
-  }
-}
-
-async function storeInDB(ticketDetails, agentDetails, eventID) {
-  const $entity = $db.entity({ version: 'v1' });
-  let dbObj = await getDbeObj(ticketDetails, agentDetails, eventID);
-  const responseFromDb = await $entity.get('fsm_records').create(dbObj);
-  // .then(data => console.log(data)).catch(err => console.log(err));
-  console.log(responseFromDb);
-}
-
-async function updateInDB(ticketDetails, agentDetails, display_id, eventID) {
-  const $entity = $db.entity({ version: 'v1' });
-  console.log(eventID)
-  let dbObj = await getDbeObj(ticketDetails, agentDetails, eventID); 
-  const responseFromDb = await $entity.get('fsm_records')
-  responseFromDb.update(display_id, dbObj).then(dbData => {
-    console.log("Response from Update : ", dbData);
-  }, err => {
-    console.log(err);
-  });
+  }, err => console.log(err));
 }
 
 async function getEventObj(ticketDetails, agentDetails, iparams) {
+  console.log("Inside get body : ", ticketDetails.custom_fields);
   let descriptionBody = `    
     <b>Contact Name : </b>${ticketDetails.custom_fields["cf_fsm_contact_name"]}
     <b>Phone Number : </b>${ticketDetails.custom_fields["cf_fsm_phone_number"]}
@@ -222,4 +231,31 @@ function reccuringSchduler(timeAt) {
   }).then(function(data) {
     console.log(data)
   }, err => console.log(err));
+}
+
+async function getCustomFieldObj(payload) {
+  let custom_fields = payload.data.ticket.custom_fields;
+  let fsm_fields = Object.keys(custom_fields).filter(filterFsmFields);
+  // console.log(fsm_fields)
+  // let tempArr = [];
+  let tempObj = new Object();
+  fsm_fields.forEach(field_name => {
+    // console.log(field_name)
+    let formatCustomField = field_name.split('_');
+    // console.log(formatCustomField)
+    if(Number(formatCustomField[formatCustomField.length - 1]) > 0) {
+      formatCustomField.pop();
+      let key = formatCustomField.join("_");
+      let value = custom_fields[field_name];
+      tempObj[key] = value;
+      // console.log(key, value);
+    } else {        
+      tempObj[field_name] = custom_fields[field_name]
+    }
+  });
+  return tempObj
+}
+
+function filterFsmFields(item) {
+  return item.toLowerCase().indexOf('cf_fsm') === 0;
 }
