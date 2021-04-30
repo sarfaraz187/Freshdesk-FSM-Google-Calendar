@@ -25,5 +25,18 @@ The fetched ticket will be verified with custom objects records to check if ther
 Since the app is making API calls every 5 mins the number of ticket to be processed is reduced significantly and the schedular time out is not reached.
 
 
+**Custom Objects Schema **
+
+**Entity**
+
+1. Ticket ID
+2. Event ID
+3. Contact Name
+4. Responder ID
+5. Phone Number
+6. Service Location
+7. Appointment Start Time
+8. Appointment End Time
+9. Updated At
 
 
