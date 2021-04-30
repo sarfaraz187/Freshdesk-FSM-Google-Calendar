@@ -25,7 +25,7 @@ The fetched ticket will be verified with custom objects records to check if ther
 Since the app is making API calls every 5 mins the number of ticket to be processed is reduced significantly and the schedular time out is not reached.
 
 
-**Custom Objects Schema **
+**Custom Objects Schema**
 
 **Entity**
 
